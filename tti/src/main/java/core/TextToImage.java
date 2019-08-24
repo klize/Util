@@ -10,36 +10,38 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import javax.imageio.ImageIO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TextToImage {
+
+  private static final String[] EXCEPTION_EXT = {"png"};
+  private Set<String> EXCEPTION = new LinkedHashSet<String>(Arrays.asList(EXCEPTION_EXT));
+
+  private static Logger logger = LoggerFactory.getLogger(TextToImage.class);
 
   public void convert(List<String> text, String fileName, String fontFamily, int fontSize)
       throws Exception {
     if (text == null || fileName == null || fontFamily == null || fontSize == 0) {
-      StringBuilder sb = new StringBuilder();
-      sb.append("Invalid Parameteres...");
-      sb.append("\n\t");
+      logger.error("Invalid Parameteres...");
       if (text == null) {
-        sb.append("text").append("was null\n\t");
+        logger.error("text was null", new NullPointerException());
       }
       if (fileName == null) {
-        sb.append("file name").append("was null\n\t");
+        logger.error("file name was null", new NullPointerException());
       }
       if (fontFamily == null) {
-        sb.append("font family").append("was null\n\t");
+        logger.error("font family was null", new NullPointerException());
       }
       if (fontSize == 0) {
-        sb.append("font size is 0").append("\n");
+        logger.error("font size was 0", new IllegalArgumentException());
       }
-      System.err.println(sb.toString());
     }
-
-    assert text != null;
-    assert fileName != null;
-    assert fontFamily != null;
-    assert fontSize != 0;
 
     Graphics2D graphics = null;
     BufferedImage bufImage = null;
@@ -50,8 +52,8 @@ public class TextToImage {
     int w = TextToImage.getMaxLengthTextLine(text) * (fontSize/2);
     int h = (text.size()+3) * fontSize;
 
-    System.out.println("Image width : " + w);
-    System.out.println("Image height : " + h);
+    logger.info(String.format("Image width : %d", w));
+    logger.info(String.format("Image height : %d", h));
 
     //Init
     font = new Font(fontFamily, Font.PLAIN, fontSize);
@@ -78,9 +80,9 @@ public class TextToImage {
 
     //Write Image
     if (ImageIO.write(bufImage, "PNG", fos) ){
-      System.out.println(fileName + " to Image Success");
+      logger.info("Successfully converted :" + fileName);
     }else{
-      System.err.print(fileName + " to Image Failed");
+      logger.error("Failed to convert :" + fileName);
     }
   }
 
@@ -103,23 +105,24 @@ public class TextToImage {
     return maxSize;
   }
 
-  public String[] getFileListFromDir(String pDir) throws Exception {
+  public List<String> getFileListFromDir(String pDir) throws Exception {
     File dir = new File(pDir);
     File[] fileList = dir.listFiles();
 
-    if (fileList.length >= 1) {
-      String[] pathList = new String[fileList.length];
+    List<String> pathList = new ArrayList<>();
 
-      for(int i = 0; i <fileList.length; i++){
-        String path = fileList[i].getParent();
-        String name = fileList[i].getName();
-        pathList[i] = path + "/" + name;
+    for(int i = 0; i <fileList.length; i++){
+      String name = fileList[i].getName();
+      if (EXCEPTION.contains(name.substring(name.lastIndexOf(".")+1))) {
+        logger.debug(name + " is not a text file -> SKIPPING");
+        continue;
       }
-
-      return pathList;
-    }else{
-      return null;
+      String path = fileList[i].getParent();
+      pathList.add(path + "/" + name);
     }
+
+    return pathList;
+
   }
 
   public List<String> readFile(String fileName) throws Exception {
@@ -130,7 +133,7 @@ public class TextToImage {
     while((contents = br.readLine()) != null){
       contents = contents.replaceAll("\t","    ");
       list.add(contents);
-      System.out.println(contents);
+      logger.debug(contents);
     }
     br.close();
     return list;
